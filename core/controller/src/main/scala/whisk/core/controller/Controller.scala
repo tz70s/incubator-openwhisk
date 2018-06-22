@@ -106,10 +106,10 @@ class Controller(val instance: InstanceId,
   private implicit val authStore = WhiskAuthStore.datastore()
   private implicit val entityStore = WhiskEntityStore.datastore()
   private implicit val cacheChangeNotification = Some(new CacheChangeNotification {
-    val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
+    val remoteCacheInvalidation = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
     override def apply(k: CacheKey) = {
-      remoteCacheInvalidaton.invalidateWhiskActionMetaData(k)
-      remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation(k)
+      remoteCacheInvalidation.invalidateWhiskActionMetaData(k)
+      remoteCacheInvalidation.notifyOtherInstancesAboutInvalidation(k)
     }
   })
 
