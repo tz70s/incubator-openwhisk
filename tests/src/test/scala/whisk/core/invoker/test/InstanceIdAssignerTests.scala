@@ -22,7 +22,6 @@ import org.apache.curator.test.TestingServer
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers}
-import whisk.core.invoker.InstanceIdAssigner
 
 @RunWith(classOf[JUnitRunner])
 class InstanceIdAssignerTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {

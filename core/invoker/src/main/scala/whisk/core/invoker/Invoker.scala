@@ -33,9 +33,7 @@ import whisk.utils.ExecutionContextFactory
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Try}
-
-case class CmdLineArgs(uniqueName: Option[String] = None, id: Option[Int] = None, displayedName: Option[String] = None)
+import scala.util.Failure
 
 object Invoker {
 
@@ -91,49 +89,14 @@ object Invoker {
       abort("Bad configuration, cannot start.")
     }
 
-    // process command line arguments
-    // We accept the command line grammar of:
-    // Usage: invoker [options] [<proposedInvokerId>]
-    //    --uniqueName <value>   a unique name to dynamically assign Kafka topics from Zookeeper
-    //    --displayedName <value> a name to identify this invoker via invoker health protocol
-    //    --id <value>     proposed invokerId
-
-    def parse(ls: List[String], c: CmdLineArgs): CmdLineArgs = {
-      ls match {
-        case "--uniqueName" :: uniqueName :: tail            => parse(tail, c.copy(uniqueName = Some(uniqueName)))
-        case "--displayedName" :: displayedName :: tail      => parse(tail, c.copy(displayedName = Some(displayedName)))
-        case "--id" :: id :: tail if Try(id.toInt).isSuccess => parse(tail, c.copy(id = Some(id.toInt)))
-        case id :: Nil if Try(id.toInt).isSuccess            => c.copy(id = Some(id.toInt))
-        case Nil                                             => c
-        case _                                               => abort(s"Error processing command line arguments $ls")
-      }
-    }
-    val cmdLineArgs = parse(args.toList, CmdLineArgs())
-    logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
-    val invokerUniqueName =
-      cmdLineArgs.uniqueName.orElse(if (config.invokerName.trim.isEmpty) None else Some(config.invokerName))
-    val assignedInvokerId = cmdLineArgs.id
-      .map { id =>
-        logger.info(this, s"invokerReg: using proposedInvokerId ${id}")
-        id
-      }
-      .getOrElse {
-        if (config.zookeeperHosts.startsWith(":") || config.zookeeperHosts.endsWith(":")) {
-          abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHosts})")
-        }
-        if (invokerUniqueName.isEmpty || invokerUniqueName.get.trim.isEmpty) {
-          abort("Invoker name can't be empty to use dynamicId assignment.")
-        }
-
-        new InstanceIdAssigner(config.zookeeperHosts).getId(invokerUniqueName.get)
-      }
+    val assignedInvokerId = 0
+    val invokerName = Some("cluster-singleton-invoker")
 
     initKamon(assignedInvokerId)
 
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
-    val invokerDisplayedName = cmdLineArgs.displayedName
-    val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerUniqueName, invokerDisplayedName)
+    val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerName, invokerName)
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (msgProvider.ensureTopic(config, topic = topicName, topicConfig = topicBaseName).isFailure) {
       abort(s"failure during msgProvider.ensureTopic for topic $topicName")
