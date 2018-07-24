@@ -15,37 +15,27 @@
  * limitations under the License.
  */
 
-include 'common:scala'
+package whisk.core.scheduler
 
-include 'core:controller'
-include 'core:invoker'
-include 'core:scheduler'
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.server.Directives._
+import whisk.core.connector.ActivationMessage
 
-include 'tests'
-include 'tests:performance:gatling_tests'
+class WhiskSchedulerDebugDirectives extends SprayJsonSupport {
 
-include 'tools:actionProxy'
-include 'tools:dev'
+  import ActivationMessage.serdes
 
-include 'tools:admin'
+  private[this] val info =
+    pathEndOrSingleSlash {
+      complete("Hi, this is an debug directive.")
+    }
 
-rootProject.name = 'openwhisk'
+  private[this] val creation =
+    (path("create") & post) {
+      entity(as[ActivationMessage]) { active =>
+        complete(s"$active")
+      }
+    }
 
-gradle.ext.scala = [
-    version: '2.11.11',
-    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
-]
-
-gradle.ext.scalafmt = [
-    version: '1.5.0',
-    config: new File(rootProject.projectDir, '.scalafmt.conf')
-]
-
-gradle.ext.scoverage = [
-    deps: [
-        'org.scoverage:scalac-scoverage-plugin_2.11:1.3.1',
-        'org.scoverage:scalac-scoverage-runtime_2.11:1.3.1'
-    ]
-]
-
-gradle.ext.curator = [version:'4.0.0']
+  val route = creation ~ info
+}
