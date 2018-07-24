@@ -267,6 +267,11 @@ object LoggingMarkers {
   // Time that is needed to produce message in kafka
   val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start)
 
+  // ***** New (future) added log marker tokens *****
+  val scheduler = "scheduler"
+  val CONTROLLER_LOADBALANCER_OVERFLOW_QUEUE = LogMarkerToken(controller, "loadBalancerOverflowQueue", start)
+  def SCHEDULER_START_CONTAINER(containerState: String) = LogMarkerToken(scheduler, "schedulerStartContainer", start)
+
   /*
    * Invoker related markers
    */

@@ -211,7 +211,7 @@ object Controller {
 
   def main(args: Array[String]): Unit = {
     Kamon.start()
-    implicit val actorSystem = ActorSystem("controller-actor-system")
+    implicit val actorSystem = ActorSystem("whisk-actor-system")
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
     // Prepare Kamon shutdown

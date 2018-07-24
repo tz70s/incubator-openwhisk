@@ -15,37 +15,26 @@
  * limitations under the License.
  */
 
-include 'common:scala'
+package whisk.core.containerpool.future
 
-include 'core:controller'
-include 'core:invoker'
-include 'core:scheduler'
+import whisk.core.entity.ControllerInstanceId
 
-include 'tests'
-include 'tests:performance:gatling_tests'
+object ContainerFactoryProtocol {
 
-include 'tools:actionProxy'
-include 'tools:dev'
+  /** Request a container with activation message for a more sophisticated decision. */
+  case class ContainerRequisition(activationMessage: String, controllerInstanceId: ControllerInstanceId)
 
-include 'tools:admin'
+  case class ContainerAllocation(actionSerde: String, ctx: ContainerContext)
 
-rootProject.name = 'openwhisk'
+  case class ContainerAllocationRejection(actionSerde: String)
 
-gradle.ext.scala = [
-    version: '2.11.11',
-    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
-]
+  case class ContainerBusyState(ctx: ContainerContext)
 
-gradle.ext.scalafmt = [
-    version: '1.5.0',
-    config: new File(rootProject.projectDir, '.scalafmt.conf')
-]
+  case class ContainerFreeState(ctx: ContainerContext)
 
-gradle.ext.scoverage = [
-    deps: [
-        'org.scoverage:scalac-scoverage-plugin_2.11:1.3.1',
-        'org.scoverage:scalac-scoverage-runtime_2.11:1.3.1'
-    ]
-]
+  case class ContainerDeletion(actionSerde: String, ctx: ContainerContext)
 
-gradle.ext.curator = [version:'4.0.0']
+  case class OverflowProxyRegistration(instanceId: ControllerInstanceId)
+
+  case class ShareStatesProxyRegistration(instanceId: ControllerInstanceId)
+}

@@ -88,8 +88,8 @@ class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig, ticker: Ticke
    *
    * @param transactionId
    */
-  override def error(transactionId: TransactionId): Unit = {
-    clear(transactionId)
+  override def error(transactionId: TransactionId, message: String): Unit = {
+    clearError(transactionId, message)
   }
 
   /**
@@ -122,6 +122,21 @@ class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig, ticker: Ticke
     }
   }
 
+  private def clearError(transactionId: TransactionId, message: String): Unit = {
+    spanMap.get(transactionId.meta.id).foreach {
+      case head :: Nil =>
+        head.setTag("error", message)
+        head.finish()
+        spanMap.remove(transactionId.meta.id)
+        contextMap.remove(transactionId.meta.id)
+      case head :: tail =>
+        head.setTag("error", message)
+        head.finish()
+        spanMap.put(transactionId.meta.id, tail)
+      case Nil =>
+    }
+  }
+
   private def clear(transactionId: TransactionId): Unit = {
     spanMap.get(transactionId.meta.id).foreach {
       case head :: Nil =>
@@ -149,7 +164,7 @@ class OpenTracer(val tracer: Tracer, tracingConfig: TracingConfig, ticker: Ticke
 trait WhiskTracer {
   def startSpan(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {}
   def finishSpan(transactionId: TransactionId): Unit = {}
-  def error(transactionId: TransactionId): Unit = {}
+  def error(transactionId: TransactionId, errorMessage: String): Unit = {}
   def getTraceContext(transactionId: TransactionId): Option[Map[String, String]] = None
   def setTraceContext(transactionId: TransactionId, context: Option[Map[String, String]]): Unit = {}
 }
@@ -191,9 +206,11 @@ object WhiskTracerProvider {
 
 private object NoopTracer extends WhiskTracer
 case class TracingConfig(component: String, cacheExpiry: Duration, zipkin: Option[ZipkinConfig] = None)
+
 case class ZipkinConfig(url: String, sampleRate: String) {
   def generateUrl = s"$url/api/v2/spans"
 }
+
 object SystemTicker extends Ticker {
   override def read() = {
     System.nanoTime()

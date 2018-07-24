@@ -15,37 +15,31 @@
  * limitations under the License.
  */
 
-include 'common:scala'
+apply plugin: 'scala'
+apply plugin: 'application'
+apply plugin: 'eclipse'
+apply plugin: 'maven'
+apply plugin: 'org.scoverage'
 
-include 'core:controller'
-include 'core:invoker'
-include 'core:scheduler'
+ext.dockerImageName = 'scheduler'
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
-include 'tests'
-include 'tests:performance:gatling_tests'
+project.archivesBaseName = "openwhisk-scheduler"
 
-include 'tools:actionProxy'
-include 'tools:dev'
+repositories {
+    mavenCentral()
+}
 
-include 'tools:admin'
+dependencies {
+    compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile project(':common:scala')
 
-rootProject.name = 'openwhisk'
+    scoverage gradle.scoverage.deps
+}
 
-gradle.ext.scala = [
-    version: '2.11.11',
-    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
-]
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+}
 
-gradle.ext.scalafmt = [
-    version: '1.5.0',
-    config: new File(rootProject.projectDir, '.scalafmt.conf')
-]
-
-gradle.ext.scoverage = [
-    deps: [
-        'org.scoverage:scalac-scoverage-plugin_2.11:1.3.1',
-        'org.scoverage:scalac-scoverage-runtime_2.11:1.3.1'
-    ]
-]
-
-gradle.ext.curator = [version:'4.0.0']
+mainClassName = "whisk.core.scheduler.Scheduler"

@@ -223,6 +223,7 @@ object ConfigKeys {
   val containerFactory = "whisk.container-factory"
   val containerArgs = s"$containerFactory.container-args"
   val containerPool = "whisk.container-pool"
+  val containerPoolClient = "whisk.container-pool-client"
   val blacklist = "whisk.blacklist"
 
   val kubernetes = "whisk.kubernetes"
