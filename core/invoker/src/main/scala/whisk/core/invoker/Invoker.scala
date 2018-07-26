@@ -94,6 +94,7 @@ object Invoker {
 
     initKamon(assignedInvokerId)
 
+    // TODO: while I've dropped the invokerId, should revise kafka topic too.
     val topicBaseName = "invoker"
     val topicName = topicBaseName + assignedInvokerId
     val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerName, invokerName)
