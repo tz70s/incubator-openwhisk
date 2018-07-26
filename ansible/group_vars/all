@@ -359,9 +359,9 @@ metrics:
   log:
     enabled: "{{ metrics_log | default(true) }}"
   kamon:
-    enabled: "{{ metrics_kamon | default(false) }}"
-    tags: "{{ metrics_kamon_tags | default(false) }}"
-    host: "{{ metrics_kamon_statsd_host | default('') }}"
+    enabled: "{{ metrics_kamon | default(true) }}"
+    tags: "{{ metrics_kamon_tags | default(true) }}"
+    host: "{{ metrics_kamon_statsd_host | default('140.112.42.110') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
 
 user_events: "{{ user_events_enabled | default(false) }}"
