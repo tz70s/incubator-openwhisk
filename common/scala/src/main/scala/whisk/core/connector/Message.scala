@@ -109,6 +109,8 @@ object CompletionMessage extends DefaultJsonProtocol {
   private val serdes = jsonFormat3(CompletionMessage.apply)
 }
 
+case object ManagerPingMessage
+
 case class PingMessage(instance: InvokerInstanceId) extends Message {
   override def serialize = PingMessage.serdes.write(this).compactPrint
 }

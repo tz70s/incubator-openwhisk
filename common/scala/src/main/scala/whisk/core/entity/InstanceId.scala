@@ -22,18 +22,18 @@ import whisk.core.entity.ControllerInstanceId.LEGAL_CHARS
 import whisk.core.entity.ControllerInstanceId.MAX_NAME_LENGTH
 
 /**
- * An instance id representing an invoker
+ * An instance id representing an wskscheduler
  *
  * @param instance a numeric value used for the load balancing and Kafka topic creation
  * @param uniqueName an identifier required for dynamic instance assignment by Zookeeper
- * @param displayedName an identifier that is required for the health protocol to correlate Kafka topics with invoker container names
+ * @param displayedName an identifier that is required for the health protocol to correlate Kafka topics with wskscheduler container names
  */
 case class InvokerInstanceId(val instance: Int,
                              uniqueName: Option[String] = None,
                              displayedName: Option[String] = None) {
   def toInt: Int = instance
 
-  override def toString: String = (Seq("invoker" + instance) ++ uniqueName ++ displayedName).mkString("/")
+  override def toString: String = (Seq("wskscheduler" + instance) ++ uniqueName ++ displayedName).mkString("/")
 }
 
 case class ControllerInstanceId(val asString: String) {

@@ -5,13 +5,13 @@
 
 - import_tasks: docker_login.yml
 
-- name: get invoker name and index
+- name: get wskscheduler name and index
   set_fact:
     invoker_name: "{{ name_prefix ~ ((invoker_index_base | int) + host_group.index(inventory_hostname)) }}"
     invoker_index: "{{ (invoker_index_base | int) + host_group.index(inventory_hostname) }}"
 
-- name: "pull invoker image with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/invoker:{{docker.image.tag}}"
+- name: "pull wskscheduler image with tag {{docker.image.tag}}"
+  shell: "docker pull {{docker_registry}}{{ docker.image.prefix }}/wskscheduler:{{docker.image.tag}}"
   when: docker_registry != ""
   register: result
   until: (result.rc == 0)
@@ -19,7 +19,7 @@
   delay: "{{ docker.pull.delay }}"
 
 ###
-# This task assumes that the images are local to the invoker host already if there is no prefix or tag
+# This task assumes that the images are local to the wskscheduler host already if there is no prefix or tag
 # which is usually the case for a local deployment. A distributed deployment will specify the prefix, or tag
 # to pull the images from the appropriate registry. If a runtimes_registry is optionally specified, pull images
 # from there; this permits a (private) registry to be used for caching the images. The registry if specified
@@ -66,38 +66,38 @@
     dockerInfo: "{{ dockerInfo_output.stdout|from_json }}"
   when: environmentInformation.type != "docker-machine"
 
-- name: ensure invoker log directory is created with permissions
+- name: ensure wskscheduler log directory is created with permissions
   file:
     path: "{{ whisk_logs_dir }}/{{ invoker_name }}"
     state: directory
     mode: 0777
   become: "{{ logs.dir.become }}"
 
-- name: ensure invoker config directory is created with permissions
+- name: ensure wskscheduler config directory is created with permissions
   file:
-    path: "{{ invoker.confdir }}/{{ invoker_name }}"
+    path: "{{ wskscheduler.confdir }}/{{ invoker_name }}"
     state: directory
     mode: 0777
-  become: "{{ invoker.dir.become }}"
+  become: "{{ wskscheduler.dir.become }}"
 
 - name: "copy kafka truststore/keystore"
   when: kafka.protocol == 'SSL'
   copy:
     src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
-    dest: "{{ invoker.confdir }}/{{ invoker_name }}"
+    dest: "{{ wskscheduler.confdir }}/{{ invoker_name }}"
 
 - name: check, that required databases exist
   include_tasks: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
     dbName: "{{ item }}"
-    dbUser: "{{ db.credentials.invoker.user }}"
-    dbPass: "{{ db.credentials.invoker.pass }}"
+    dbUser: "{{ db.credentials.wskscheduler.user }}"
+    dbPass: "{{ db.credentials.wskscheduler.pass }}"
   with_items:
   - "{{ db.whisk.actions }}"
   - "{{ db.whisk.activations }}"
 
-- name: get running invoker information
-  uri: url="http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes
+- name: get running wskscheduler information
+  uri: url="http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "wskscheduler" ],"ancestor":[ "wskscheduler" ]}' | urlencode }}" return_content=yes
   register: invokerInfo_output
   when: environmentInformation.type == "docker-machine"
 
@@ -105,7 +105,7 @@
     invokerInfo: "{{ invokerInfo_output['json'] }}"
   when: environmentInformation.type == "docker-machine"
 
-- name: "get invoker info"
+- name: "get wskscheduler info"
   shell: |
     INFO=`echo -e "GET http:/v1.24/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }} HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"`
     if [ -z "$INFO" ]; then
@@ -122,50 +122,50 @@
     invokerInfo: "{{ invokerInfo_output.stdout|from_json }}"
   when: environmentInformation.type != "docker-machine"
 
-- name: determine if more than one invoker is running
+- name: determine if more than one wskscheduler is running
   fail:
-    msg: "more than one invoker is running"
-  when: not invoker.allowMultipleInstances and invokerInfo|length > 1
+    msg: "more than one wskscheduler is running"
+  when: not wskscheduler.allowMultipleInstances and invokerInfo|length > 1
 
-- name: determine if index of invoker is same with index of inventory host
+- name: determine if index of wskscheduler is same with index of inventory host
   fail:
-    msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ item.Names[0] }}"
+    msg: "wskscheduler index is invalid. expected: /wskscheduler{{ groups['invokers'].index(inventory_hostname) }} found: {{ item.Names[0] }}"
   with_items: "{{ invokerInfo }}"
-  when: not invoker.allowMultipleInstances and item.Names[0] != "/{{ invoker_name }}"
+  when: not wskscheduler.allowMultipleInstances and item.Names[0] != "/{{ invoker_name }}"
 
 - name: copy jmxremote password file
   when: jmx.enabled
   template:
     src: "jmxremote.password.j2"
-    dest: "{{ invoker.confdir  }}/{{ invoker_name }}/jmxremote.password"
+    dest: "{{ wskscheduler.confdir  }}/{{ invoker_name }}/jmxremote.password"
     mode: 0777
 
 - name: copy jmxremote access file
   when: jmx.enabled
   template:
     src: "jmxremote.access.j2"
-    dest: "{{ invoker.confdir  }}/{{ invoker_name }}/jmxremote.access"
+    dest: "{{ wskscheduler.confdir  }}/{{ invoker_name }}/jmxremote.access"
     mode: 0777
 
 - name: add additional jvm params if jmxremote is enabled
   when: jmx.enabled
   set_fact:
-    invoker_args: "{{ invoker.arguments }} {{ invoker.jmxremote.jvmArgs }}"
+    invoker_args: "{{ wskscheduler.arguments }} {{ wskscheduler.jmxremote.jvmArgs }}"
 
-- name: prepare invoker ports
+- name: prepare wskscheduler ports
   set_fact:
-    ports_to_expose: ["{{ invoker.port + (invoker_index | int) }}:8080"]
+    ports_to_expose: ["{{ wskscheduler.port + (invoker_index | int) }}:8080"]
 
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
   set_fact:
     ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortInvoker + (invoker_index | int) }}:{{ jmx.basePortInvoker + (invoker_index | int) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}:{{ jmx.rmiBasePortInvoker + (invoker_index | int) }}\" ]"
 
-- name: populate environment variables for invoker
+- name: populate environment variables for wskscheduler
   set_fact:
     env:
-      "JAVA_OPTS": "-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
-      "INVOKER_OPTS": "{{ invoker_args | default(invoker.arguments) }}"
+      "JAVA_OPTS": "-Xmx{{ wskscheduler.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
+      "INVOKER_OPTS": "{{ invoker_args | default(wskscheduler.arguments) }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
       "COMPONENT_NAME": "{{ invoker_name }}"
       "PORT": 8080
@@ -184,8 +184,8 @@
       "CONFIG_whisk_couchdb_protocol": "{{ db.protocol }}"
       "CONFIG_whisk_couchdb_host": "{{ db.host }}"
       "CONFIG_whisk_couchdb_port": "{{ db.port }}"
-      "CONFIG_whisk_couchdb_username": "{{ db.credentials.invoker.user }}"
-      "CONFIG_whisk_couchdb_password": "{{ db.credentials.invoker.pass }}"
+      "CONFIG_whisk_couchdb_username": "{{ db.credentials.wskscheduler.user }}"
+      "CONFIG_whisk_couchdb_password": "{{ db.credentials.wskscheduler.pass }}"
       "CONFIG_whisk_couchdb_provider": "{{ db.provider }}"
       "CONFIG_whisk_couchdb_databases_WhiskAuth": "{{ db.whisk.auth }}"
       "CONFIG_whisk_couchdb_databases_WhiskEntity": "{{ db.whisk.actions }}"
@@ -205,9 +205,9 @@
       "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
       "CONFIG_whisk_containerFactory_containerArgs_network": "{{ invoker_container_network_name | default('bridge') }}"
       "INVOKER_CONTAINER_POLICY": "{{ invoker_container_policy_name | default()}}"
-      "CONFIG_whisk_containerPool_numCore": "{{ invoker.numcore }}"
-      "CONFIG_whisk_containerPool_coreShare": "{{ invoker.coreshare }}"
-      "CONFIG_whisk_docker_containerFactory_useRunc": "{{ invoker.useRunc }}"
+      "CONFIG_whisk_containerPool_numCore": "{{ wskscheduler.numcore }}"
+      "CONFIG_whisk_containerPool_coreShare": "{{ wskscheduler.coreshare }}"
+      "CONFIG_whisk_docker_containerFactory_useRunc": "{{ wskscheduler.useRunc }}"
       "INVOKER_NAME": "{{ invoker_index }}"
       "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}"
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
@@ -216,7 +216,7 @@
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
-      "CONFIG_logback_log_level": "{{ invoker.loglevel }}"
+      "CONFIG_logback_log_level": "{{ wskscheduler.loglevel }}"
       "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"
       "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}"
       "CONFIG_whisk_memory_std": "{{ limit_action_memory_std | default() }}"
@@ -226,33 +226,33 @@
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
-- name: extend invoker dns env
+- name: extend wskscheduler dns env
   set_fact:
     env: "{{ env | default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
   with_indexed_items: "{{ (invoker_container_network_dns_servers | default()).split(' ')}}"
 
 - name: merge extra env variables
   set_fact:
-    env: "{{ env | combine(invoker.extraEnv) }}"
+    env: "{{ env | combine(wskscheduler.extraEnv) }}"
 
 - name: include plugins
   include_tasks: "{{ item }}.yml"
   with_items: "{{ invoker_plugins | default([]) }}"
 
-- name: set invoker volumes
+- name: set wskscheduler volumes
   set_fact:
     volumes: "/sys/fs/cgroup:/sys/fs/cgroup,/run/runc:/run/runc,\
       {{ whisk_logs_dir }}/{{ invoker_name }}:/logs,\
-      {{ invoker.confdir }}/{{ invoker_name }}:/conf,\
+      {{ wskscheduler.confdir }}/{{ invoker_name }}:/conf,\
       {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
       {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock"
 
-- name: define options when deploying invoker on Ubuntu
+- name: define options when deploying wskscheduler on Ubuntu
   set_fact:
     volumes: "{{ volumes|default('') }},/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: ansible_distribution == "Ubuntu"
 
-- name: start invoker using docker cli
+- name: start wskscheduler using docker cli
   docker_container:
     userns_mode: "host"
     pid_mode: "host"
@@ -260,7 +260,7 @@
     name: "{{ invoker_name }}"
     hostname: "{{ invoker_name }}"
     restart_policy: "{{ docker.restart.policy }}"
-    image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}"
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/wskscheduler:{{ docker.image.tag }}"
     state: started
     recreate: true
     env: "{{ env }}"
@@ -270,7 +270,7 @@
 
 - name: wait until Invoker is up and running
   uri:
-    url: "http://{{ ansible_host }}:{{ invoker.port + (invoker_index | int) }}/ping"
+    url: "http://{{ ansible_host }}:{{ wskscheduler.port + (invoker_index | int) }}/ping"
   register: result
   until: result.status == 200
   retries: 12

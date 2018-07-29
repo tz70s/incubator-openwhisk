@@ -15,7 +15,7 @@
     dbName: "{{ db.whisk.actions }}"
     readers:
     - "{{ db.credentials.controller.user }}"
-    - "{{ db.credentials.invoker.user }}"
+    - "{{ db.credentials.wskscheduler.user }}"
     writers:
     - "{{ db.credentials.controller.user }}"
 
@@ -28,10 +28,10 @@
     dbName: "{{ db.whisk.activations }}"
     readers:
     - "{{ db.credentials.controller.user }}"
-    - "{{ db.credentials.invoker.user }}"
+    - "{{ db.credentials.wskscheduler.user }}"
     writers:
     - "{{ db.credentials.controller.user }}"
-    - "{{ db.credentials.invoker.user }}"
+    - "{{ db.credentials.wskscheduler.user }}"
 
 - include_tasks: recreateViews.yml
   when: withViews == True

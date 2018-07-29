@@ -45,7 +45,7 @@ def configTemplate = '''<component name="ProjectRunConfigurationManager">
 
 def meta = [
         controller : [main:"whisk.core.controller.Controller"],
-        invoker : [main:"whisk.core.invoker.Invoker"]
+        invoker : [main:"whisk.core.wskscheduler.Invoker"]
 ]
 
 //Get names of all running containers
@@ -62,7 +62,7 @@ containerNames.each{cn ->
     def json = new JsonSlurper().parseText(inspectResult)
 
     def imageName = json[0].'Config'.'Image'
-    if (imageName.contains("controller") || imageName.contains("invoker")){
+    if (imageName.contains("controller") || imageName.contains("wskscheduler")){
         def mappedPort = json.'NetworkSettings'.'Ports'.'8080/tcp'[0][0].'HostPort'
 
         def envBaseMap = getEnvMap(json[0].'Config'.'Env')
@@ -71,7 +71,7 @@ containerNames.each{cn ->
             type = "controller"
             controllerEnv = envBaseMap
         } else {
-            type = "invoker"
+            type = "wskscheduler"
             invokerEnv = envBaseMap
         }
 
@@ -106,7 +106,7 @@ containerNames.each{cn ->
 }
 
 /**
- * Computes the env values which are common and then specific to controller and invoker
+ * Computes the env values which are common and then specific to controller and wskscheduler
  * and dumps them to a file. This can be used for docker-compose
  */
 if (controllerEnv != null && invokerEnv != null){
@@ -125,7 +125,7 @@ if (controllerEnv != null && invokerEnv != null){
 
     copyEnvToFile(commonEnv,"whisk-common.env")
     copyEnvToFile(controllerSpecificEnv,"whisk-controller.env")
-    copyEnvToFile(invokerSpecificEnv,"whisk-invoker.env")
+    copyEnvToFile(invokerSpecificEnv,"whisk-wskscheduler.env")
 }
 
 def copyEnvToFile(SortedMap envMap,String envFileName){

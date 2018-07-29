@@ -22,7 +22,7 @@ RUN wget --no-verbose https://storage.googleapis.com/kubernetes-release/release/
 chmod +x kubectl && \
 mv kubectl /usr/bin/kubectl
 
-ADD build/distributions/invoker.tar ./
+ADD build/distributions/wskmanager.tar ./
 
 COPY init.sh /
 RUN chmod +x init.sh

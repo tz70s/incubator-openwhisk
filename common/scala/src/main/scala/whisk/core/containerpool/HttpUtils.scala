@@ -44,7 +44,7 @@ import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
 /**
- * This HTTP client is used only in the invoker to communicate with the action container.
+ * This HTTP client is used only in the wskscheduler to communicate with the action container.
  * It allows to POST a JSON object and receive JSON object back; that is the
  * content type and the accept headers are both 'application/json.
  * The reason we still use this class for the action container is a mysterious hang

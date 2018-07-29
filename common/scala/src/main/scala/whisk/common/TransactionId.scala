@@ -211,7 +211,7 @@ object TransactionId {
 
   val unknown = TransactionId(systemPrefix + "unknown")
   val testing = TransactionId(systemPrefix + "testing") // Common id for for unit testing
-  val invoker = TransactionId(systemPrefix + "invoker") // Invoker startup/shutdown or GC activity
+  val invoker = TransactionId(systemPrefix + "wskscheduler") // Invoker startup/shutdown or GC activity
   val invokerWarmup = TransactionId(systemPrefix + "invokerWarmup") // Invoker warmup thread that makes stem-cell containers
   val invokerNanny = TransactionId(systemPrefix + "invokerNanny") // Invoker nanny thread
   val dispatcher = TransactionId(systemPrefix + "dispatcher") // Kafka message dispatcher

@@ -15,36 +15,18 @@
  * limitations under the License.
  */
 
-include 'common:scala'
+package whisk.core.wskscheduler
 
-include 'core:controller'
-include 'core:wskscheduler'
-include 'core:wskagent'
+import akka.actor.{Actor, Props}
+import whisk.core.WhiskConfig
+import whisk.core.containerpool.ContainerPoolConfig
 
-include 'tests:performance:gatling_tests'
+object WhiskSchedulerSingleton {
+  def props(config: WhiskConfig, poolConfig: ContainerPoolConfig) =
+    Props(new WhiskSchedulerSingleton(config, poolConfig))
+}
 
-include 'tools:actionProxy'
-include 'tools:dev'
+class WhiskSchedulerSingleton(val config: WhiskConfig, val poolConfig: ContainerPoolConfig) extends Actor {
 
-include 'tools:admin'
-
-rootProject.name = 'openwhisk'
-
-gradle.ext.scala = [
-    version: '2.11.11',
-    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
-]
-
-gradle.ext.scalafmt = [
-    version: '1.5.0',
-    config: new File(rootProject.projectDir, '.scalafmt.conf')
-]
-
-gradle.ext.scoverage = [
-    deps: [
-        'org.scoverage:scalac-scoverage-plugin_2.11:1.3.1',
-        'org.scoverage:scalac-scoverage-runtime_2.11:1.3.1'
-    ]
-]
-
-gradle.ext.curator = [version:'4.0.0']
+  override def receive: Receive = ???
+}

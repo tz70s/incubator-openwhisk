@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package whisk.core.invoker
+package whisk.core.wskscheduler
 
 import whisk.common.TransactionId
 import whisk.core.database.StaleParameter

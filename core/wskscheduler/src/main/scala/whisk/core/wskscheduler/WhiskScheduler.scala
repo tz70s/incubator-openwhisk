@@ -15,27 +15,24 @@
  * limitations under the License.
  */
 
-package whisk.core.invoker
+package whisk.core.wskscheduler
 
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown}
+import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigValueFactory
 import kamon.Kamon
 import whisk.common._
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
-import whisk.core.connector.{MessagingProvider, PingMessage}
-import whisk.core.entity.{ExecManifest, InvokerInstanceId}
-import whisk.http.{BasicHttpService, BasicRasService}
-import whisk.spi.SpiLoader
+import whisk.core.entity.ExecManifest
 import whisk.utils.ExecutionContextFactory
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.util.Failure
 
-object Invoker {
+object WhiskScheduler {
 
   /**
    * An object which records the environment variables required for this component to run.
@@ -43,24 +40,23 @@ object Invoker {
   def requiredProperties =
     Map(servicePort -> 8080.toString, invokerName -> "", runtimesRegistry -> "") ++
       ExecManifest.requiredProperties ++
-      kafkaHosts ++
-      zookeeperHosts ++
       wskApiHost
 
-  def initKamon(instance: Int): Unit = {
-    // Replace the hostname of the invoker to the assigned id of the invoker.
+  def initKamon(): Unit = {
+    // Replace the hostname of the wskscheduler to the assigned id of the wskscheduler.
     val newKamonConfig = Kamon.config
       .withValue(
         "kamon.statsd.simple-metric-key-generator.hostname-override",
-        ConfigValueFactory.fromAnyRef(s"invoker$instance"))
+        ConfigValueFactory.fromAnyRef(s"wskscheduler"))
     Kamon.start(newKamonConfig)
   }
 
   def main(args: Array[String]): Unit = {
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
-      ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
+      ActorSystem(name = "wskscheduler-actor-system", defaultExecutionContext = Some(ec))
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+    implicit val materializer = ActorMaterializer()
 
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
@@ -89,35 +85,10 @@ object Invoker {
       abort("Bad configuration, cannot start.")
     }
 
-    val assignedInvokerId = 0
-    val invokerName = Some("cluster-singleton-invoker")
+    initKamon()
 
-    initKamon(assignedInvokerId)
-
-    // TODO: while I've dropped the invokerId, should revise kafka topic too.
-    val topicBaseName = "invoker"
-    val topicName = topicBaseName + assignedInvokerId
-    val invokerInstance = InvokerInstanceId(assignedInvokerId, invokerName, invokerName)
-    val msgProvider = SpiLoader.get[MessagingProvider]
-    if (msgProvider.ensureTopic(config, topic = topicName, topicConfig = topicBaseName).isFailure) {
-      abort(s"failure during msgProvider.ensureTopic for topic $topicName")
-    }
-    val producer = msgProvider.getProducer(config)
-    val invoker = try {
-      new InvokerReactive(config, invokerInstance, producer)
-    } catch {
-      case e: Exception => abort(s"Failed to initialize reactive invoker: ${e.getMessage}")
-    }
-
-    Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-      producer.send("health", PingMessage(invokerInstance)).andThen {
-        case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
-      }
-    })
-
-    val port = config.servicePort.toInt
-    BasicHttpService.startHttpService(new BasicRasService {}.route, port)(
-      actorSystem,
-      ActorMaterializer.create(actorSystem))
+    val debugDirectives = new WhiskSchedulerDebugDirectives
+    Http().bindAndHandle(debugDirectives.route, "localhost", 8282)
+    logger.info(this, "Spawn a http server for debug purpose.")
   }
 }

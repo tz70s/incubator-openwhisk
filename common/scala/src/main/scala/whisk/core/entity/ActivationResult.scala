@@ -93,7 +93,7 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   protected[core] def payloadPlaceholder(payload: Option[JsObject]) = ActivationResponse(ApplicationError, payload)
 
   /**
-   * Class of errors for invoker-container communication.
+   * Class of errors for wskscheduler-container communication.
    */
   protected[core] sealed trait ContainerConnectionError
   protected[core] sealed trait ContainerHttpError extends ContainerConnectionError

@@ -1,23 +1,23 @@
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements; and to You under the Apache License, Version 2.0.
 ---
-# Remove invoker containers.
+# Remove wskscheduler containers.
 
-- name: get invoker name and index
+- name: get wskscheduler name and index
   set_fact:
     invoker_name: "{{ name_prefix ~ ((invoker_index_base | int) + host_group.index(inventory_hostname)) }}"
     invoker_index: "{{ (invoker_index_base | int) + host_group.index(inventory_hostname) }}"
 
-- name: remove invoker
+- name: remove wskscheduler
   docker_container:
     name: "{{ invoker_name }}"
-    image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}"
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/wskscheduler:{{ docker.image.tag }}"
     state: absent
     stop_timeout: 60
     timeout: 120
   ignore_errors: True
 
-# In case the invoker could not clean up completely in time.
+# In case the wskscheduler could not clean up completely in time.
 - name: pause/resume at runc-level to restore docker consistency
   shell: |
         DOCKER_PAUSED=$(docker ps --filter status=paused --filter name=wsk{{ invoker_index }} -q --no-trunc)
@@ -28,7 +28,7 @@
         echo "Handled $TOTAL remaining actions."
   register: runc_output
   ignore_errors: True
-  become: "{{ invoker.docker.become }}"
+  become: "{{ wskscheduler.docker.become }}"
 
 - debug: msg="{{ runc_output.stdout }}"
 
@@ -40,17 +40,17 @@
   shell: "docker rm -f $(docker ps -aq --filter name=wsk{{ invoker_index }})"
   failed_when: False
 
-- name: remove invoker log directory
+- name: remove wskscheduler log directory
   file:
     path: "{{ whisk_logs_dir }}/{{ invoker_name }}"
     state: absent
   become: "{{ logs.dir.become }}"
 
-- name: remove invoker conf directory
+- name: remove wskscheduler conf directory
   file:
-    path: "{{ invoker.confdir }}/{{ invoker_name }}"
+    path: "{{ wskscheduler.confdir }}/{{ invoker_name }}"
     state: absent
-  become: "{{ invoker.dir.become }}"
+  become: "{{ wskscheduler.dir.become }}"
 
 # Workaround for orphaned ifstate.veth* files on Ubuntu 14.04
 # See https://github.com/moby/moby/issues/22513

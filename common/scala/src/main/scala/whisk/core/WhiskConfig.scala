@@ -151,11 +151,11 @@ object WhiskConfig {
   val dockerEndpoint = "main.docker.endpoint"
   val dbPrefix = "db.prefix"
   // these are not private because they are needed
-  // in the invoker (they are part of the environment
+  // in the wskscheduler (they are part of the environment
   // passed to the user container)
   val edgeHostName = "edge.host"
 
-  val invokerName = "invoker.name"
+  val invokerName = "wskscheduler.name"
 
   val wskApiProtocol = "whisk.api.host.proto"
   val wskApiPort = "whisk.api.host.port"

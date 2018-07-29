@@ -170,7 +170,7 @@ private object Emitter {
 /**
  * Used to record log message and make a metric name.
  *
- * @param component Component like invoker, controller, and docker. It is defined in LoggingMarkers.
+ * @param component Component like wskscheduler, controller, and docker. It is defined in LoggingMarkers.
  * @param action Action of the component.
  * @param state State of the action.
  * @param subAction more specific identifier for "action", like `runc.resume`
@@ -245,7 +245,7 @@ object LoggingMarkers {
   val count = "count"
 
   private val controller = "controller"
-  private val invoker = "invoker"
+  private val invoker = "wskscheduler"
   private val database = "database"
   private val activation = "activation"
   private val kafka = "kafka"
@@ -271,7 +271,7 @@ object LoggingMarkers {
    */
   def INVOKER_STARTUP(i: Int) = LogMarkerToken(invoker, s"startup$i", count)
 
-  // Check invoker healthy state from loadbalancer
+  // Check wskscheduler healthy state from loadbalancer
   val LOADBALANCER_INVOKER_OFFLINE = LogMarkerToken(loadbalancer, "invokerOffline", count)
   val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
   val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", count)
@@ -290,7 +290,7 @@ object LoggingMarkers {
   // Time needed to collect the logs
   val INVOKER_COLLECT_LOGS = LogMarkerToken(invoker, "collectLogs", start)
 
-  // Time in invoker
+  // Time in wskscheduler
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
   def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd))

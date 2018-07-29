@@ -141,7 +141,7 @@ class KafkaConsumerConnector(
 
   @volatile private var consumer: KafkaConsumer[Array[Byte], Array[Byte]] = createConsumer(topic)
 
-  // Read current lag of the consumed topic, e.g. invoker queue
+  // Read current lag of the consumed topic, e.g. wskscheduler queue
   // Since we use only one partition in kafka, it is defined 0
   Scheduler.scheduleWaitAtMost(cfg.metricFlushIntervalS.seconds, 10.seconds, "kafka-lag-monitor") { () =>
     Future {

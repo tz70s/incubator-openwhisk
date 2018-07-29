@@ -100,7 +100,7 @@ protected[core] object ExecManifest {
    * Misc options related to runtime manifests.
    *
    * @param bypassPullForLocalImages if true, allow images with a prefix that matches localImagePrefix
-   *                                 to skip docker pull on invoker even if the image is not part of the blackbox set;
+   *                                 to skip docker pull on wskscheduler even if the image is not part of the blackbox set;
    *                                 this is useful for testing with local images that aren't published to the runtimes registry
    * @param localImagePrefix image prefix for bypassPullForLocalImages
    */
@@ -117,7 +117,7 @@ protected[core] object ExecManifest {
    * @param requireMain true iff main entry point is not optional
    * @param sentinelledLogs true iff the runtime generates stdout/stderr log sentinels after an activation
    * @param image optional image name, otherwise inferred via fixed mapping (remove colons and append 'action')
-   * @param stemCells optional list of stemCells to be initialized by invoker per kind
+   * @param stemCells optional list of stemCells to be initialized by wskscheduler per kind
    */
   protected[core] case class RuntimeManifest(kind: String,
                                              image: ImageName,

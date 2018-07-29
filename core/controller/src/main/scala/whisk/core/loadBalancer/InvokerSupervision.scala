@@ -97,7 +97,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef
     case GetStatus => sender() ! status
 
     case msg: InvocationFinishedMessage =>
-      // Forward message to invoker, if InvokerActor exists
+      // Forward message to wskscheduler, if InvokerActor exists
       instanceToRef.get(msg.invokerInstance).foreach(_.forward(msg))
 
     case CurrentState(invoker, currentState: InvokerState) =>
@@ -112,14 +112,14 @@ class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef
       }
       logStatus()
 
-    // this is only used for the internal test action which enabled an invoker to become healthy again
+    // this is only used for the internal test action which enabled an wskscheduler to become healthy again
     case msg: ActivationRequest => sendActivationToInvoker(msg.msg, msg.invoker).pipeTo(sender)
   }
 
   def logStatus() = {
     monitor.foreach(_ ! CurrentInvokerPoolState(status))
     val pretty = status.map(i => s"${i.id.toInt} -> ${i.status}")
-    logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
+    logging.info(this, s"wskscheduler status changed to ${pretty.mkString(", ")}")
   }
 
   /** Receive Ping messages from invokers. */
@@ -151,9 +151,9 @@ class InvokerPool(childFactory: (ActorRefFactory, InvokerInstanceId) => ActorRef
   /** Pads a list to a given length using the given function to compute entries */
   def padToIndexed[A](list: IndexedSeq[A], n: Int, f: (Int) => A) = list ++ (list.size until n).map(f)
 
-  // Register a new invoker
+  // Register a new wskscheduler
   def registerInvoker(instanceId: InvokerInstanceId): ActorRef = {
-    logging.info(this, s"registered a new invoker: invoker${instanceId.toInt}")(TransactionId.invokerHealth)
+    logging.info(this, s"registered a new wskscheduler: wskscheduler${instanceId.toInt}")(TransactionId.invokerHealth)
 
     status = padToIndexed(status, instanceId.toInt + 1, i => new InvokerHealth(InvokerInstanceId(i), Offline))
 
@@ -184,8 +184,8 @@ object InvokerPool {
       }
       .map(_ => {})
       .andThen {
-        case Success(_) => logging.info(this, "test action for invoker health now exists")
-        case Failure(e) => logging.error(this, s"error creating test action for invoker health: $e")
+        case Success(_) => logging.info(this, "test action for wskscheduler health now exists")
+        case Failure(e) => logging.error(this, s"error creating test action for wskscheduler health: $e")
       }
   }
 
@@ -207,7 +207,7 @@ object InvokerPool {
       }
       .orElse {
         throw new IllegalStateException(
-          "cannot create test action for invoker health because runtime manifest is not valid")
+          "cannot create test action for wskscheduler health because runtime manifest is not valid")
       }
   }
 
@@ -229,7 +229,7 @@ object InvokerPool {
       Set[Privilege]())
   }
 
-  /** An action to use for monitoring invoker health. */
+  /** An action to use for monitoring wskscheduler health. */
   def healthAction(i: ControllerInstanceId) = ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map {
     manifest =>
       new WhiskAction(
@@ -249,7 +249,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
     extends FSM[InvokerState, InvokerInfo] {
   implicit val transid = TransactionId.invokerHealth
   implicit val logging = new AkkaLogging(context.system.log)
-  val name = s"invoker${invokerInstance.toInt}"
+  val name = s"wskscheduler${invokerInstance.toInt}"
 
   val healthyTimeout = 10.seconds
 
@@ -261,20 +261,20 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
   override def receive = customReceive.orElse(super.receive)
 
   /**
-   *  Always start UnHealthy. Then the invoker receives some test activations and becomes Healthy.
+   *  Always start UnHealthy. Then the wskscheduler receives some test activations and becomes Healthy.
    */
   startWith(UnHealthy, InvokerInfo(new RingBuffer[Boolean](InvokerActor.bufferSize)))
 
   /**
-   * An Offline invoker represents an existing but broken
-   * invoker. This means, that it does not send pings anymore.
+   * An Offline wskscheduler represents an existing but broken
+   * wskscheduler. This means, that it does not send pings anymore.
    */
   when(Offline) {
     case Event(_: PingMessage, _) => goto(UnHealthy)
   }
 
   /**
-   * An UnHealthy invoker represents an invoker that was not able to handle actions successfully.
+   * An UnHealthy wskscheduler represents an wskscheduler that was not able to handle actions successfully.
    */
   when(UnHealthy, stateTimeout = healthyTimeout) {
     case Event(_: PingMessage, _) => stay
@@ -286,7 +286,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
   }
 
   /**
-   * A Healthy invoker is characterized by continuously getting
+   * A Healthy wskscheduler is characterized by continuously getting
    * pings. It will go offline if that state is not confirmed
    * for 20 seconds.
    */
@@ -319,7 +319,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
     case _ -> Healthy => logging.info(this, s"$name is healthy")
   }
 
-  /** Scheduler to send test activations when the invoker is unhealthy. */
+  /** Scheduler to send test activations when the wskscheduler is unhealthy. */
   onTransition {
     case _ -> UnHealthy => {
       invokeTestAction()
@@ -342,9 +342,9 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
 
     // If the action is successful it seems like the Invoker is Healthy again. So we execute immediately
     // a new test action to remove the errors out of the RingBuffer as fast as possible.
-    // The actions that arrive while the invoker is unhealthy are most likely health actions.
+    // The actions that arrive while the wskscheduler is unhealthy are most likely health actions.
     // It is possible they are normal user actions as well. This can happen if such actions were in the
-    // invoker queue or in progress while the invoker's status flipped to Unhealthy.
+    // wskscheduler queue or in progress while the wskscheduler's status flipped to Unhealthy.
     if (wasActivationSuccessful && stateName == UnHealthy) {
       invokeTestAction()
     }
@@ -365,7 +365,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
 
   /**
    * Creates an activation request with the given action and sends it to the InvokerPool.
-   * The InvokerPool redirects it to the invoker which is represented by this InvokerActor.
+   * The InvokerPool redirects it to the wskscheduler which is represented by this InvokerActor.
    */
   private def invokeTestAction() = {
     InvokerPool.healthAction(controllerInstance).map { action =>
@@ -373,7 +373,7 @@ class InvokerActor(invokerInstance: InvokerInstanceId, controllerInstance: Contr
         // Use the sid of the InvokerSupervisor as tid
         transid = transid,
         action = action.fullyQualifiedName(true),
-        // Use empty DocRevision to force the invoker to pull the action from db all the time
+        // Use empty DocRevision to force the wskscheduler to pull the action from db all the time
         revision = DocRevision.empty,
         user = InvokerPool.healthActionIdentity,
         // Create a new Activation ID for this activation

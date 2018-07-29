@@ -79,11 +79,11 @@ object MessageFeed {
  * handler. The actor tracks the number of messages dispatched and will not dispatch new
  * messages until some number of them are acknowledged.
  *
- * This is used by the invoker to pull messages from the message bus and apply back pressure
- * when the invoker does not have resources to complete processing messages (i.e., no containers
+ * This is used by the wskscheduler to pull messages from the message bus and apply back pressure
+ * when the wskscheduler does not have resources to complete processing messages (i.e., no containers
  * are available to run new actions). It is also used in the load balancer to consume active
  * ack messages.
- * When the invoker releases resources (by reclaiming containers) it will send a message
+ * When the wskscheduler releases resources (by reclaiming containers) it will send a message
  * to this actor which will then attempt to fill the pipeline with new messages.
  *
  * The actor tries to fill the pipeline with additional messages while the number

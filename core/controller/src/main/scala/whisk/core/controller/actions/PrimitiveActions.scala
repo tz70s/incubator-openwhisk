@@ -547,7 +547,7 @@ protected[actions] trait PrimitiveActions {
    * or active ack.
    *
    * While waiting for the active ack, periodically poll the datastore in case there is a failure in the fast path delivery
-   * which could happen if the connection from an invoker to the message bus is disrupted, or if the publishing of the response
+   * which could happen if the connection from an wskscheduler to the message bus is disrupted, or if the publishing of the response
    * fails because the message is too large.
    */
   private def waitForActivationResponse(user: Identity,

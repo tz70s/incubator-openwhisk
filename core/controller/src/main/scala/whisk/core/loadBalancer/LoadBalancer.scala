@@ -27,10 +27,10 @@ import whisk.core.entity._
 import whisk.spi.Spi
 
 /**
- * Describes an abstract invoker. An invoker is a local container pool manager that
+ * Describes an abstract wskscheduler. An wskscheduler is a local container pool manager that
  * is in charge of the container life cycle management.
  *
- * @param id a unique instance identifier for the invoker
+ * @param id a unique instance identifier for the wskscheduler
  * @param status it status (healthy, unhealthy, offline)
  */
 class InvokerHealth(val id: InvokerInstanceId, val status: InvokerState) {
@@ -45,10 +45,10 @@ class InvokerHealth(val id: InvokerInstanceId, val status: InvokerState) {
 trait LoadBalancer {
 
   /**
-   * Publishes activation message on internal bus for an invoker to pick up.
+   * Publishes activation message on internal bus for an wskscheduler to pick up.
    *
    * @param action the action to invoke
-   * @param msg the activation message to publish on an invoker topic
+   * @param msg the activation message to publish on an wskscheduler topic
    * @param transid the transaction id for the request
    * @return result a nested Future the outer indicating completion of publishing and
    *         the inner the completion of the action (i.e., the result)

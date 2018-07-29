@@ -223,7 +223,7 @@
       "CONFIG_whisk_controller_https_clientAuth":
         "{{ controller.ssl.clientAuth }}"
       "CONFIG_whisk_loadbalancer_invokerBusyThreshold":
-        "{{ invoker.busyThreshold }}"
+        "{{ wskscheduler.busyThreshold }}"
       "CONFIG_whisk_loadbalancer_blackboxFraction":
         "{{ controller.blackboxFraction }}"
 

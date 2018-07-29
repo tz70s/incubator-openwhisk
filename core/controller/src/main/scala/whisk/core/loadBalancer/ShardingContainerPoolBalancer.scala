@@ -50,20 +50,20 @@ import scala.util.{Failure, Success}
  *
  * ## Algorithm
  *
- * At first, for every namespace + action pair a hash is calculated and then an invoker is picked based on that hash
- * (`hash % numInvokers`). The determined index is the so called "home-invoker". This is the invoker where the following
- * progression will **always** start. If this invoker is healthy (see "Invoker health checking") and if there is
- * capacity on that invoker (see "Capacity checking"), the request is scheduled to it.
+ * At first, for every namespace + action pair a hash is calculated and then an wskscheduler is picked based on that hash
+ * (`hash % numInvokers`). The determined index is the so called "home-wskscheduler". This is the wskscheduler where the following
+ * progression will **always** start. If this wskscheduler is healthy (see "Invoker health checking") and if there is
+ * capacity on that wskscheduler (see "Capacity checking"), the request is scheduled to it.
  *
  * If one of these prerequisites is not true, the index is incremented by a step-size. The step-sizes available are the
  * all coprime numbers smaller than the amount of invokers available (coprime, to minimize collisions while progressing
  * through the invokers). The step-size is picked by the same hash calculated above (`hash & numStepSizes`). The
- * home-invoker-index is now incremented by the step-size and the checks (healthy + capacity) are done on the invoker
+ * home-wskscheduler-index is now incremented by the step-size and the checks (healthy + capacity) are done on the wskscheduler
  * we land on now.
  *
  * This procedure is repeated until all invokers have been checked at which point the "overload" strategy will be
- * employed, which is to choose a healthy invoker randomly. In a steadily running system, that overload means that there
- * is no capacity on any invoker left to schedule the current request to.
+ * employed, which is to choose a healthy wskscheduler randomly. In a steadily running system, that overload means that there
+ * is no capacity on any wskscheduler left to schedule the current request to.
  *
  * If no invokers are available or if there are no healthy invokers in the system, the loadbalancer will return an error
  * stating that no invokers are available to take any work. Requests are not queued anywhere in this case.
@@ -77,47 +77,47 @@ import scala.util.{Failure, Success}
  *
  * Progression to check the invokers: 3, 6, 9, 2, 5, 8, 1, 4, 7, 0 --> done
  *
- * This heuristic is based on the assumption, that the chance to get a warm container is the best on the home invoker
+ * This heuristic is based on the assumption, that the chance to get a warm container is the best on the home wskscheduler
  * and degrades the more steps you make. The hashing makes sure that all loadbalancers in a cluster will always pick the
- * same home invoker and do the same progression for a given action.
+ * same home wskscheduler and do the same progression for a given action.
  *
  * Known caveats:
- * - This assumption is not always true. For instance, two heavy workloads landing on the same invoker can override each
- *   other, which results in many cold starts due to all containers being evicted by the invoker to make space for the
+ * - This assumption is not always true. For instance, two heavy workloads landing on the same wskscheduler can override each
+ *   other, which results in many cold starts due to all containers being evicted by the wskscheduler to make space for the
  *   "other" workload respectively. Future work could be to keep a buffer of invokers last scheduled for each action and
  *   to prefer to pick that one. Then the second-last one and so forth.
  *
  * ## Capacity checking
  *
- * The maximum capacity per invoker is configured using `invoker-busy-threshold`, which is the maximum amount of actions
- * running in parallel on that invoker.
+ * The maximum capacity per wskscheduler is configured using `wskscheduler-busy-threshold`, which is the maximum amount of actions
+ * running in parallel on that wskscheduler.
  *
- * Spare capacity is determined by what the loadbalancer thinks it scheduled to each invoker. Upon scheduling, an entry
+ * Spare capacity is determined by what the loadbalancer thinks it scheduled to each wskscheduler. Upon scheduling, an entry
  * is made to update the books and a slot in a Semaphore is taken. That slot is only released after the response from
- * the invoker (active-ack) arrives **or** after the active-ack times out. The Semaphore has as many slots as are
- * configured via `invoker-busy-threshold`.
+ * the wskscheduler (active-ack) arrives **or** after the active-ack times out. The Semaphore has as many slots as are
+ * configured via `wskscheduler-busy-threshold`.
  *
  * Known caveats:
  * - In an overload scenario, activations are queued directly to the invokers, which makes the active-ack timeout
  *   unpredictable. Timing out active-acks in that case can cause the loadbalancer to prematurely assign new load to an
- *   overloaded invoker, which can cause uneven queues.
- * - The same is true if an invoker is extraordinarily slow in processing activations. The queue on this invoker will
+ *   overloaded wskscheduler, which can cause uneven queues.
+ * - The same is true if an wskscheduler is extraordinarily slow in processing activations. The queue on this wskscheduler will
  *   slowly rise if it gets slow to the point of still sending pings, but handling the load so slowly, that the
  *   active-acks time out. The loadbalancer again will think there is capacity, when there is none.
  *
- * Both caveats could be solved in future work by not queueing to invoker topics on overload, but to queue on a
+ * Both caveats could be solved in future work by not queueing to wskscheduler topics on overload, but to queue on a
  * centralized overflow topic. Timing out an active-ack can then be seen as a system-error, as described in the
  * following.
  *
  * ## Invoker health checking
  *
- * Invoker health is determined via a kafka-based protocol, where each invoker pings the loadbalancer every second. If
- * no ping is seen for a defined amount of time, the invoker is considered "Offline".
+ * Invoker health is determined via a kafka-based protocol, where each wskscheduler pings the loadbalancer every second. If
+ * no ping is seen for a defined amount of time, the wskscheduler is considered "Offline".
  *
  * Moreover, results from all activations are inspected. If more than 3 out of the last 10 activations contained system
- * errors, the invoker is considered "Unhealthy". If an invoker is unhealty, no user workload is sent to it, but
+ * errors, the wskscheduler is considered "Unhealthy". If an wskscheduler is unhealty, no user workload is sent to it, but
  * test-actions are sent by the loadbalancer to check if system errors are still happening. If the
- * system-error-threshold-count in the last 10 activations falls below 3, the invoker is considered "Healthy" again.
+ * system-error-threshold-count in the last 10 activations falls below 3, the wskscheduler is considered "Healthy" again.
  *
  * To summarize:
  * - "Offline": Ping missing for > 10 seconds
@@ -129,8 +129,8 @@ import scala.util.{Failure, Success}
  * Sharding is employed to avoid both loadbalancers having to share any data, because the metrics used in scheduling
  * are very fast changing.
  *
- * Horizontal sharding means, that each invoker's capacity is evenly divided between the loadbalancers. If an invoker
- * has at most 16 slots available (invoker-busy-threshold = 16), those will be divided to 8 slots for each loadbalancer
+ * Horizontal sharding means, that each wskscheduler's capacity is evenly divided between the loadbalancers. If an wskscheduler
+ * has at most 16 slots available (wskscheduler-busy-threshold = 16), those will be divided to 8 slots for each loadbalancer
  * (if there are 2).
  *
  * Known caveats:
@@ -171,7 +171,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
   }
 
   /**
-   * Monitors invoker supervision and the cluster to update the state sequentially
+   * Monitors wskscheduler supervision and the cluster to update the state sequentially
    *
    * All state updates should go through this actor to guarantee that
    * [[ShardingContainerPoolBalancerState.updateInvokers]] and [[ShardingContainerPoolBalancerState.updateCluster]]
@@ -195,7 +195,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
         schedulingState.updateCluster(availableMembers.size)
 
       // General lifecycle events and events concerning the reachability of members. Split-brain is not a huge concern
-      // in this case as only the invoker-threshold is adjusted according to the perceived cluster-size.
+      // in this case as only the wskscheduler-threshold is adjusted according to the perceived cluster-size.
       // Taking the unreachable member out of the cluster from that point-of-view results in a better experience
       // even under split-brain-conditions, as that (in the worst-case) results in premature overloading of invokers vs.
       // going into overflow mode prematurely.
@@ -256,7 +256,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
 
     val timeout = action.limits.timeout.duration.max(TimeLimit.STD_DURATION) + 1.minute
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
-    // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
+    // (because say an wskscheduler is down completely, or the connection to the message bus is disrupted) or when
     // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
     // in this case, if the activation handler is still registered, remove it and update the books.
     activations.getOrElseUpdate(
@@ -279,13 +279,13 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
   private val messagingProvider = SpiLoader.get[MessagingProvider]
   private val messageProducer = messagingProvider.getProducer(config)
 
-  /** 3. Send the activation to the invoker */
+  /** 3. Send the activation to the wskscheduler */
   private def sendActivationToInvoker(producer: MessageProducer,
                                       msg: ActivationMessage,
                                       invoker: InvokerInstanceId): Future[RecordMetadata] = {
     implicit val transid: TransactionId = msg.transid
 
-    val topic = s"invoker${invoker.toInt}"
+    val topic = s"wskscheduler${invoker.toInt}"
 
     MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
     val start = transid.started(
@@ -365,7 +365,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Con
 
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
         // Active acks that are received here are strictly from user actions - health actions are not part of
-        // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
+        // the load balancer's activation map. Inform the wskscheduler pool supervisor of the user action completion.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
       case None if !forced =>
         // the entry has already been removed but we receive an active ack for this activation Id.
@@ -419,14 +419,14 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     })
 
   /**
-   * Scans through all invokers and searches for an invoker tries to get a free slot on an invoker. If no slot can be
-   * obtained, randomly picks a healthy invoker.
+   * Scans through all invokers and searches for an wskscheduler tries to get a free slot on an wskscheduler. If no slot can be
+   * obtained, randomly picks a healthy wskscheduler.
    *
    * @param invokers a list of available invokers to search in, including their state
-   * @param dispatched semaphores for each invoker to give the slots away from
+   * @param dispatched semaphores for each wskscheduler to give the slots away from
    * @param index the index to start from (initially should be the "homeInvoker"
    * @param step stable identifier of the entity to be scheduled
-   * @return an invoker to schedule to or None of no invoker is available
+   * @return an wskscheduler to schedule to or None of no wskscheduler is available
    */
   @tailrec
   def schedule(invokers: IndexedSeq[InvokerHealth],
@@ -438,7 +438,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
     if (numInvokers > 0) {
       val invoker = invokers(index)
-      // If the current invoker is healthy and we can get a slot
+      // If the current wskscheduler is healthy and we can get a slot
       if (invoker.status == Healthy && dispatched(invoker.id.toInt).tryAcquire()) {
         Some(invoker.id)
       } else {
@@ -446,10 +446,10 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
         if (stepsDone == numInvokers + 1) {
           val healthyInvokers = invokers.filter(_.status == Healthy)
           if (healthyInvokers.nonEmpty) {
-            // Choose a healthy invoker randomly
+            // Choose a healthy wskscheduler randomly
             val random = healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id
             dispatched(random.toInt).forceAcquire()
-            logging.warn(this, s"system is overloaded. Chose invoker${random.toInt} by random assignment.")
+            logging.warn(this, s"system is overloaded. Chose wskscheduler${random.toInt} by random assignment.")
             Some(random)
           } else {
             None
@@ -471,9 +471,9 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
  * @param _invokers all of the known invokers in the system
  * @param _managedInvokers all invokers for managed runtimes
  * @param _blackboxInvokers all invokers for blackbox runtimes
- * @param _managedStepSizes the step-sizes possible for the current managed invoker count
- * @param _blackboxStepSizes the step-sizes possible for the current blackbox invoker count
- * @param _invokerSlots state of accessible slots of each invoker
+ * @param _managedStepSizes the step-sizes possible for the current managed wskscheduler count
+ * @param _blackboxStepSizes the step-sizes possible for the current blackbox wskscheduler count
+ * @param _invokerSlots state of accessible slots of each wskscheduler
  */
 case class ShardingContainerPoolBalancerState(
   private var _invokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
@@ -508,7 +508,7 @@ case class ShardingContainerPoolBalancerState(
    * to update the "invokers" variables last, since they will determine the range of invokers to choose from.
    *
    * Handling a shrinking invokers list is not necessary, because InvokerPool won't shrink its own list but rather
-   * report the invoker as "Offline".
+   * report the wskscheduler as "Offline".
    *
    * It is important that this method does not run concurrently to itself and/or to [[updateCluster]]
    */
@@ -539,7 +539,7 @@ case class ShardingContainerPoolBalancerState(
 
     logging.info(
       this,
-      s"loadbalancer invoker status updated. managedInvokers = $managed blackboxInvokers = $blackboxes")(
+      s"loadbalancer wskscheduler status updated. managedInvokers = $managed blackboxInvokers = $blackboxes")(
       TransactionId.loadbalancer)
   }
 
@@ -547,7 +547,7 @@ case class ShardingContainerPoolBalancerState(
    * Updates the size of a cluster. Throws away all state for simplicity.
    *
    * This is okay to not happen atomically, since a dirty read of the values set are not dangerous. At worst the
-   * scheduler works on outdated invoker-load data which is acceptable.
+   * scheduler works on outdated wskscheduler-load data which is acceptable.
    *
    * It is important that this method does not run concurrently to itself and/or to [[updateInvokers]]
    */
@@ -578,7 +578,7 @@ case class ClusterConfig(useClusterBootstrap: Boolean)
  * Configuration for the sharding container pool balancer.
  *
  * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
- * @param invokerBusyThreshold how many slots an invoker has available in total
+ * @param invokerBusyThreshold how many slots an wskscheduler has available in total
  */
 case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
 
@@ -587,7 +587,7 @@ case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invoker
  *
  * @param id id of the activation
  * @param namespaceId namespace that invoked the action
- * @param invokerName invoker the action is scheduled to
+ * @param invokerName wskscheduler the action is scheduled to
  * @param timeoutHandler times out completion of this activation, should be canceled on good paths
  * @param promise the promise to be completed by the activation
  */

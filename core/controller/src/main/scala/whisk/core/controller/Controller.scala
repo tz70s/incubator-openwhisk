@@ -137,7 +137,7 @@ class Controller(val instance: ControllerInstanceId,
    * Handles GET /invokers
    *             /invokers/healthy/count
    *
-   * @return JSON with details of invoker health or count of healthy invokers respectively.
+   * @return JSON with details of wskscheduler health or count of healthy invokers respectively.
    */
   private val internalInvokerHealth = {
     implicit val executionContext = actorSystem.dispatcher

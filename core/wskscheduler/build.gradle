@@ -21,11 +21,11 @@ apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'org.scoverage'
 
-ext.dockerImageName = 'invoker'
+ext.dockerImageName = 'wskscheduler'
 apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
-project.archivesBaseName = "openwhisk-invoker"
+project.archivesBaseName = "openwhisk-wskscheduler"
 
 repositories {
     mavenCentral()
@@ -50,4 +50,4 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
-mainClassName = "whisk.core.invoker.Invoker"
+mainClassName = "whisk.core.wskscheduler.WhiskScheduler"

@@ -15,11 +15,11 @@
     # name_prefix - a unique prefix for this set of invokers.  The prefix
     #   will be used in combination with an index (determined using
     #   'host_group' above) to name host/invokers.
-    name_prefix: "invoker"
+    name_prefix: "wskscheduler"
     #
     # invoker_index_base - the deployment process allocates host docker
     #   ports to individual invokers based on their indices.  This is an
-    #   additional offset to prevent collisions between different invoker
+    #   additional offset to prevent collisions between different wskscheduler
     #   groups. Usually 0 if only one group is being deployed, otherwise
     #   something like "{{ groups['firstinvokergroup']|length }}"
     invoker_index_base: 0
