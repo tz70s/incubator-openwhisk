@@ -17,15 +17,12 @@
 
 package whisk.core.containerpool.kubernetes
 
-import java.io.{FileNotFoundException, IOException}
+import java.io.IOException
 import java.net.SocketTimeoutException
-import java.nio.file.Files
-import java.nio.file.Paths
 import java.time.{Instant, ZoneId}
 import java.time.format.DateTimeFormatterBuilder
 
 import akka.actor.ActorSystem
-import akka.event.Logging.{ErrorLevel, InfoLevel}
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.Uri.Query
@@ -37,7 +34,6 @@ import akka.util.ByteString
 import io.fabric8.kubernetes.api.model._
 import pureconfig.loadConfigOrThrow
 import whisk.common.Logging
-import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
 import whisk.core.containerpool.ContainerId
@@ -68,7 +64,10 @@ import scala.util.control.NonFatal
 /**
  * Configuration for kubernetes client command timeouts.
  */
-case class KubernetesClientTimeoutConfig(run: Duration, rm: Duration, inspect: Duration, logs: Duration)
+case class KubernetesClientTimeoutConfig(run: FiniteDuration,
+                                         rm: FiniteDuration,
+                                         inspect: FiniteDuration,
+                                         logs: FiniteDuration)
 
 /**
  * Configuration for kubernetes invoker-agent
@@ -100,19 +99,6 @@ class KubernetesClient(
       .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
       .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
       .build())
-
-  // Determines how to run kubectl. Failure to find a kubectl binary implies
-  // a failure to initialize this instance of KubernetesClient.
-  protected def findKubectlCmd(): String = {
-    val alternatives = List("/usr/bin/kubectl", "/usr/local/bin/kubectl")
-    val kubectlBin = Try {
-      alternatives.find(a => Files.isExecutable(Paths.get(a))).get
-    } getOrElse {
-      throw new FileNotFoundException(s"Couldn't locate kubectl binary (tried: ${alternatives.mkString(", ")}).")
-    }
-    kubectlBin
-  }
-  protected val kubectlCmd = Seq(findKubectlCmd)
 
   def run(name: String,
           image: String,
@@ -147,11 +133,11 @@ class KubernetesClient(
       .endSpec()
       .build()
 
-    val namespace = kubeRestClient.getNamespace
-    kubeRestClient.pods.inNamespace(namespace).create(pod)
-
     Future {
       blocking {
+        val namespace = kubeRestClient.getNamespace
+        kubeRestClient.pods.inNamespace(namespace).create(pod)
+
         val createdPod = kubeRestClient.pods
           .inNamespace(namespace)
           .withName(name)
@@ -166,11 +152,29 @@ class KubernetesClient(
   }
 
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
-    runCmd(Seq("delete", "--now", "pod", container.id.asString), config.timeouts.rm).map(_ => ())
+    val namespace = kubeRestClient.getNamespace
+    wrapWithTimeout(container.id.asString) {
+      kubeRestClient.pods.inNamespace(namespace).withName(container.id.asString).delete()
+    }
   }
 
   def rm(key: String, value: String, ensureUnpaused: Boolean = false)(implicit transid: TransactionId): Future[Unit] = {
-    runCmd(Seq("delete", "--now", "pod", "-l", s"$key=$value"), config.timeouts.rm).map(_ => ())
+    val namespace = kubeRestClient.getNamespace
+    wrapWithTimeout(s"label $key-$value") {
+      kubeRestClient.pods().inNamespace(namespace).withLabel(key, value).delete()
+    }
+  }
+
+  // DSL for using akka after pattern to achieve timeout behavior,
+  // due to we have a separate timeout configuration and fabric8 can only serve one.
+  private[this] def wrapWithTimeout(description: String)(rm: => Boolean)(
+    implicit transactionId: TransactionId): Future[Unit] = {
+    val timeout = akka.pattern.after(config.timeouts.rm, using = as.scheduler)(
+      Future.failed(new Exception(s"Timeout occurred during delete pod: $description")))
+    val rms = Future { rm } flatMap { result =>
+      if (result) Future.successful(()) else Future.failed(new Exception(s"Failed to delete pod: $description"))
+    }
+    Future firstCompletedOf Seq(rms, timeout)
   }
 
   // suspend is a no-op with the basic KubernetesClient
@@ -201,18 +205,6 @@ class KubernetesClient(
     new KubernetesContainer(id, addr, workerIP, nativeContainerId)
   }
 
-  protected def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
-    val cmd = kubectlCmd ++ args
-    val start = transid.started(
-      this,
-      LoggingMarkers.INVOKER_KUBECTL_CMD(args.head),
-      s"running ${cmd.mkString(" ")} (timeout: $timeout)",
-      logLevel = InfoLevel)
-    executeProcess(cmd, timeout).andThen {
-      case Success(_) => transid.finished(this, start)
-      case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
-    }
-  }
 }
 
 object KubernetesClient {
